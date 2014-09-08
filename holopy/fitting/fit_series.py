@@ -55,7 +55,8 @@ def scatterer_centered_subimage(size, recenter_at_edge=False):
                 raise
             new_center = np.array(model.scatterer.guess.center[:2])
             new_center -= np.clip(new_center-np.array(size)/2, -np.inf, 0)
-            new_center += np.clip(holo.shape[:2]-(new_center + np.array(size)/2), -np.inf, 0)
+            new_center += np.clip(holo.shape[:2]-(new_center +
+                                                  np.array(size)/2), -np.inf, 0)
             return normalize(subimage(holo/bg, new_center, size))
 
     return preprocess
@@ -146,60 +147,6 @@ def fit_series(model, data, data_optics=None, data_spacing=None,
             allresults.append(result)
             if outf != '':
                 save(outf, result)
-
-        model = update_func(model, result)
-
-    return allresults
-
-def series_guess(model, data, data_optics=None, data_spacing=None,
-                 bg=None, df=None, preprocess_func=div_normalize,
-                 **kwargs):
-    """See the guess that would be used in a series fit
-
-    This function intentionally takes the same arguments as series_fit
-    so that you can call series_guess and compare to data[0] before starting a fit
-
-    Parameters
-    ----------
-    model : :class:`.Model` object
-        A model describing the scattering system which leads
-        to your data and the parameters to vary to fit it
-        to the data
-    data : list(filenames) or list(:class:`.Image`)
-        List of Image objects to fit, or full paths of images to load
-    data_optics : :class:`.Optics` (optional)
-        Optics information (only required if loading image files without
-        optical information)
-    data_spacing : float or np.array
-        Pixel spacing for data. (Only required if loading image files without
-        spacing information)
-    bg : :class:`.Image` object or path
-        Optional background image to be used for cleaning up
-        the raw data images
-    df : :class:`.Image` object or path
-        Optional darkfield image to be used for cleaning up
-        the raw data images
-    preprocess_func : function
-        Handles pre-processing images before fitting the model
-        to them
-    kwargs : varies
-        additional arguments to pass to fit for each frame
-
-    Returns
-    -------
-    guess : marray (like data[0])
-        The initial guess that would be used for fitting data[0] in fit_series
-    """
-    if isinstance(bg, basestring):
-        bg = load(bg, spacing=data_spacing, optics=data_optics)
-        if not isinstance(frame, Image):
-            frame = load(frame, spacing=data_spacing, optics=data_optics)
-        imagetofit = preprocess_func(frame, bg, df, model)
-
-        result = fit(model, imagetofit, **kwargs)
-        allresults.append(result)
-        if outf != '':
-            save(outf, result)
 
         model = update_func(model, result)
 
