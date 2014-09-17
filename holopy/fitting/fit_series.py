@@ -26,14 +26,19 @@ from __future__ import division
 
 import warnings
 
-import os
-import types
-import numpy as np
 from holopy.core.process import normalize
 from holopy.core import subimage, Image
+from holopy.core.marray import HoloPyObject
 from holopy.core.helpers import mkdir_p
 from holopy.core.io import load, save
-from holopy.fitting import fit
+from holopy.fitting import fit, FitResult
+from holopy.core.errors import LoadError
+
+import os
+from glob import glob
+import types
+import numpy as np
+
 
 #default preprocessing function
 def div_normalize(holo, bg, df, model):
@@ -151,6 +156,41 @@ def fit_series(model, data, data_optics=None, data_spacing=None,
         model = update_func(model, result)
 
     return allresults
+
+class FitSeriesResult(HoloPyObject):
+    """
+    Results of a timeseries fit
+
+    Parameters
+    ----------
+    results : [FitResult] or [filenames] or directory containing result files
+        The FitResults of a timeseries fit. You can pass either the FitResults
+        directly, filenames of fitresult files, or a directory containing the
+        fit results from a timeseries.
+    """
+    def __init__(self, results):
+        if os.path.isdir(results):
+            results = glob(os.path.join(results, '*_result.yaml'))
+        def load_if_needed(n):
+            if not isinstance(n, FitResult):
+                return load(n)
+            return n
+
+        if isinstance(results, basestring):
+            raise LoadError(results, "FitResultSeries needs to load a directory "
+                            "or list of filenames")
+
+        self.results = [load_if_needed(n) for n in results]
+
+    def data_frame(self):
+        """
+        Get a pandas DataFrame of the results
+
+        This requires pandas, which is not a dependency of HoloPy in general
+        """
+        import pandas as pd
+        return pd.DataFrame([r.summary() for r in self.results])
+
 
 def series_guess(model, data, data_optics=None, data_spacing=None,
                  bg=None, df=None, preprocess_func=div_normalize,

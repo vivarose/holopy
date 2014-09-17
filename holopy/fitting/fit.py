@@ -178,6 +178,7 @@ class FitResult(HoloPyObject):
 
     summary_misc = ['rsq', 'chisq', 'time', 'converged', 'niter']
 
+    @property
     def niter(self):
         # TODO: have this correctly pull number of iterations from
         # non-nmpfit minimizers.
