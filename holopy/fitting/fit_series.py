@@ -170,7 +170,7 @@ class FitSeriesResult(HoloPyObject):
     """
     def __init__(self, results):
         if os.path.isdir(results):
-            results = glob(os.path.join(results, '*_result.yaml'))
+            results = sorted(glob(os.path.join(results, '*_result.yaml')))
         def load_if_needed(n):
             if not isinstance(n, FitResult):
                 return load(n)
