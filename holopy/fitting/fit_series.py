@@ -31,7 +31,7 @@ from holopy.core import subimage, Image
 from holopy.core.marray import HoloPyObject
 from holopy.core.helpers import mkdir_p
 from holopy.core.io import load, save
-from holopy.fitting import fit, FitResult
+from holopy.fitting import fit, FitResult, par
 from holopy.core.errors import LoadError
 
 import os
@@ -94,7 +94,7 @@ def fit_series(model, data, data_optics=None, data_spacing=None,
         A model describing the scattering system which leads
         to your data and the parameters to vary to fit it
         to the data
-    data : list(filenames) or list(:class:`.Image`)
+    data : list(filenames) or list(:class:`.Image`) or directory containing images
         List of Image objects to fit, or full paths of images to load
     data_optics : :class:`.Optics` (optional)
         Optics information (only required if loading image files without
@@ -108,9 +108,10 @@ def fit_series(model, data, data_optics=None, data_spacing=None,
     df : :class:`.Image` object or path
         Optional darkfield image to be used for cleaning up
         the raw data images
-    outfilenames : list
+    outfilenames : list, None, or directory
         Full paths to save output for each image, if not
-        included, nothing saved
+        included, nothing saved. If given a directory, results will be saved as
+        result0000.yaml, ... in that directory
     preprocess_func : function
         Handles pre-processing images before fitting the model
         to them
@@ -134,9 +135,14 @@ def fit_series(model, data, data_optics=None, data_spacing=None,
     if isinstance(bg, basestring):
         bg = load(bg, spacing=data_spacing, optics=data_optis)
 
+    if os.path.isdir(data):
+        data = sorted(os.path.listdir(data))
+
     #to allow running without saving output
     if outfilenames is None:
         outfilenames = ['']*len(data)
+    if os.path.isdir(outfilenames):
+        outfilenames = ['result{0:04}.yaml'.format(i) for i in range(len(data))]
 
     for frame, outf in zip(data, outfilenames):
         if restart and os.path.exists(outf):
@@ -206,7 +212,7 @@ def series_guess(model, data, data_optics=None, data_spacing=None,
         A model describing the scattering system which leads
         to your data and the parameters to vary to fit it
         to the data
-    data : list(filenames) or list(:class:`.Image`)
+    data : list(filenames) or list(:class:`.Image`) or directory containing images
         List of Image objects to fit, or full paths of images to load
     data_optics : :class:`.Optics` (optional)
         Optics information (only required if loading image files without
@@ -250,7 +256,7 @@ def series_preprocess_data(model, data, data_optics=None, data_spacing=None,
         A model describing the scattering system which leads
         to your data and the parameters to vary to fit it
         to the data
-    data : list(filenames) or list(:class:`.Image`)
+    data : list(filenames) or list(:class:`.Image`) or directory containing images
         List of Image objects to fit, or full paths of images to load
     data_optics : :class:`.Optics` (optional)
         Optics information (only required if loading image files without
@@ -277,7 +283,53 @@ def series_preprocess_data(model, data, data_optics=None, data_spacing=None,
     """
     if isinstance(bg, basestring):
         bg = load(bg, spacing=data_spacing, optics=data_optics)
+
+    if os.path.isdir(data):
+        data = sorted(os.path.listdir(data))
     frame = _get_first(data)
     if not isinstance(frame, Image):
         frame = load(frame, data_spacing, data_optics)
     return preprocess_func(frame, bg, df, model)
+
+class Experiment(HoloPyObject):
+    """
+    Define common things about an experiment to make it easy to fit multiple runs
+
+    Parameters
+    ----------
+    directory : path
+        The directory where the data for the experiment is
+    optics : :class:`.Optics`
+        Optics used to record data in this Experiment
+    spacing : float
+        Pixel spacing used in the experiment
+    theory : :class:`.ScatteringTheory`
+        Scattering theory to use for fits. You can provide this with each run individually instead
+    preprocess_func : function
+        Preprocessing function to apply to each frame before fitting. You can provide this with each run individually instead
+    alpha : :class:`.Parameter`
+        Alpha to use when fitting. You can provide this with each run individually instead
+    random_subset : float
+        Random subset to use when fitting. You can provide this with each run individually instead
+    """
+    def __init__(self, directory, optics, spacing, theory = None,
+                 preprocess_func=None, alpha = par(.7), random_subset=None):
+        self.optics = optics
+        self.spacing = spacing
+        self.theory = theory
+        self.directory = directory
+        self.preprocess = preprocess_func
+
+    def fit_run(guess, bg, run, theory=None, preprocess_func=None, alpha=None, random_subset=None):
+        if theory is None:
+            theory = self.theory
+        if preprocess_func is None:
+            preprocess_func = self.preprocess_func
+        if alpha is None:
+            alpha = self.alpha
+        if random_subset is None:
+            random_subset = self.random_subset
+
+        model = Model(guess, theory=theory, alpha=alpha)
+        bg = hp.load(os.path.join(self.directory, bg), self.spacing, self.optics)
+        fit_series(model, os.path.join(self.directory, run), preprocess_func, random_subset)
