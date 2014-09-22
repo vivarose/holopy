@@ -82,7 +82,7 @@ def _get_first(x):
         return x
 
 def fit_series(model, data, data_optics=None, data_spacing=None,
-               bg=None, df=None, outfilenames=None,
+               bg=None, df=None, output=None,
                preprocess_func=div_normalize, update_func=update_all,
                restart=False, **kwargs):
     """
@@ -108,7 +108,7 @@ def fit_series(model, data, data_optics=None, data_spacing=None,
     df : :class:`.Image` object or path
         Optional darkfield image to be used for cleaning up
         the raw data images
-    outfilenames : list, None, or directory
+    output : list, None, or directory
         Full paths to save output for each image, if not
         included, nothing saved. If given a directory, results will be saved as
         result0000.yaml, ... in that directory
@@ -132,19 +132,24 @@ def fit_series(model, data, data_optics=None, data_spacing=None,
 
     allresults = []
 
-    if isinstance(bg, basestring):
+    if not isinstance(bg, Image):
         bg = load(bg, spacing=data_spacing, optics=data_optis)
 
     if os.path.isdir(data):
-        data = sorted(os.path.listdir(data))
+        data = [os.path.join(data, f) for f in sorted(os.listdir(data))]
 
+    # if the user gives a single string presumably that is the name of
+    # a directory they want to save the output in
+    if isinstance(output, basestring):
+        mkdir_p(output)
+    if os.path.isdir(output):
+        output = [os.path.join(output, 'result{0:04}.yaml'.format(i))
+                        for i in range(len(data))]
     #to allow running without saving output
-    if outfilenames is None:
-        outfilenames = ['']*len(data)
-    if os.path.isdir(outfilenames):
-        outfilenames = ['result{0:04}.yaml'.format(i) for i in range(len(data))]
+    if output is None:
+        output = ['']*len(data)
 
-    for frame, outf in zip(data, outfilenames):
+    for frame, outf in zip(data, output):
         if restart and os.path.exists(outf):
             result = load(outf)
         else:
@@ -362,4 +367,4 @@ class Experiment(HoloPyObject):
         d1 = series_preprocess_data(model, data, self.optics,
                                     self.spacing, self.df, preprocess_func)
         hp.show(d1/bg)
-        guess = series_guess(model, data, preporcess_func
+#        guess = series_guess(model, data, preporcess_func
