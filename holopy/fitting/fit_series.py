@@ -81,6 +81,16 @@ def _get_first(x):
     else:
         return x
 
+def _infiles(data, bg, df):
+    if bg is not None and not isinstance(bg, Image):
+        bg = load(bg)
+    if df is not None and not isinstance(df, Image):
+        df = load(df)
+    if os.path.isdir(data):
+        data = [os.path.join(data, f) for f in sorted(os.listdir(data))]
+    return data, bg, df
+
+
 def fit_series(model, data, data_optics=None, data_spacing=None,
                bg=None, df=None, output=None,
                preprocess_func=div_normalize, update_func=update_all,
@@ -132,11 +142,8 @@ def fit_series(model, data, data_optics=None, data_spacing=None,
 
     allresults = []
 
-    if not isinstance(bg, Image):
-        bg = load(bg, spacing=data_spacing, optics=data_optis)
+    data, bg, df = _infiles(data, bg, df)
 
-    if os.path.isdir(data):
-        data = [os.path.join(data, f) for f in sorted(os.listdir(data))]
 
     # if the user gives a single string presumably that is the name of
     # a directory they want to save the output in
@@ -181,7 +188,7 @@ class FitSeriesResult(HoloPyObject):
     """
     def __init__(self, results):
         if os.path.isdir(results):
-            results = sorted(glob(os.path.join(results, '*_result.yaml')))
+            results = sorted(glob(os.path.join(results, '*.yaml')))
         def load_if_needed(n):
             if not isinstance(n, FitResult):
                 return load(n)
@@ -286,11 +293,9 @@ def series_preprocess_data(model, data, data_optics=None, data_spacing=None,
     guess : marray (like data[0])
         The initial guess that would be used for fitting data[0] in fit_series
     """
-    if isinstance(bg, basestring):
-        bg = load(bg, spacing=data_spacing, optics=data_optics)
 
-    if os.path.isdir(data):
-        data = sorted(os.path.listdir(data))
+    data, bg, df = _infiles(data, bg, df)
+
     frame = _get_first(data)
     if not isinstance(frame, Image):
         frame = load(frame, data_spacing, data_optics)
