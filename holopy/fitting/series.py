@@ -165,14 +165,14 @@ def fit(model, data, bg=None, df=None, output_file=None,
         output_file += '.h5'
     with SeriesResult(output_file) as results:
         if isinstance(bg, basestring):
-            bg = load(bg, spacing=data_spacing, optics=data_optis)
+            bg = load(bg, spacing=data_spacing, optics=data_optics)
         if isinstance(df, basestring):
             df = load(df, spacing=data_spacing, optics=data_optics)
 
         for i, frame in enumerate(data):
             imagetofit = preprocess_func(frame, bg, df, model)
             result = fit_single(model, imagetofit, **kwargs)
-            results.append(fit_single(model, imagetofit, **kwargs), True)
+            results.append(result, True)
             print("Fit frame {}, rsq={}".format(i, result.rsq))
             model = update_func(model, result)
 
